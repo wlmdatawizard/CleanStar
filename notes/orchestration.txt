@@ -1,0 +1,35 @@
+this is an example of what pipeline.py would look like upon completion
+
+from cleanstar.config import load_settings
+from cleanstar.connection import get_connection
+
+def setup_snowflake(connection):
+    """Create Snowflake infrastructure."""
+
+    run_setup(connection)
+    create_tables(connection)
+    ...
+
+
+def run_pipeline(connection):
+    """Run the recurring data pipeline."""
+
+    run_ingestion(connection)
+    run_validation(connection)
+    run_transformations(connection)
+    build_views(connection)
+    record_audit_results(connection) 
+    ...
+
+
+def run_all():
+    """Run setup followed by the data pipeline."""
+
+    settings = load_settings()
+    with get_connection(settings) as connection:
+        setup_snowflake(connection)
+        run_pipeline(connection)
+
+
+
+ 

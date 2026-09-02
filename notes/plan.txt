@@ -1,0 +1,30 @@
+CleanStar/
+├── sql/
+│   ├── ingestion/
+│   ├── setup/
+│   │   ├── database.sql
+│   │   ├── grants.sql
+│   │   ├── roles.sql
+│   │   ├── schemas.sql
+│   │   ├── stages.sql
+│   │   └── warehouse.sql
+│   ├── tables/
+│   ├── transformations/
+│   ├── validation/
+│   └── views/
+└── src/
+    └── cleanstar/
+        ├── setup/
+        │   ├── __init__.py
+        │   ├── database.py
+        │   ├── grants.py
+        │   ├── roles.py
+        │   ├── schemas.py
+        │   ├── stages.py
+        │   └── warehouse.py
+        ├── __init__.py
+        ├── cli.py
+        ├── config.py
+        ├── connection.py
+        ├── pipeline.py
+        └── sql_runner.py
