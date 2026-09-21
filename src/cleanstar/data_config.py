@@ -1,8 +1,26 @@
-"""Data-loading configuration for CleanStar.
+"""Dataset and table configuration for CleanStar.
 
 Define source filenames, destination tables, column mappings, and load metadata
 here as ingestion is implemented. Snowflake connection settings live in config.py.
 """
+
+# Clean source columns not listed here remain VARCHAR.
+# RAW and QUARANTINE source columns always remain VARCHAR.
+# Apply these types when generating clean_tables.sql; SQL files do not read Python.
+CLEAN_COLUMN_TYPES = {
+    "PATIENT_BIRTHDATE": "DATE",
+    "BIRTHDATE": "DATE",
+    "COVERAGE_START_DATE": "DATE",
+    "COVERAGE_END_DATE": "DATE",
+    "SERVICE_START_DATETIME": "TIMESTAMP_TZ",
+    "SERVICE_END_DATETIME": "TIMESTAMP_TZ",
+    "CLAIM_CREATED_DATETIME": "TIMESTAMP_TZ",
+    "START_DATETIME": "TIMESTAMP_TZ",
+    "END_DATETIME": "TIMESTAMP_TZ",
+    "CLAIM_AMOUNT": "NUMBER(18, 2)",
+    "BASE_ENCOUNTER_COST": "NUMBER(18, 2)",
+    "VALIDATION_ERROR_COUNT": "NUMBER(38, 0)",
+}
 
 RAW_LOADS = [
     (
