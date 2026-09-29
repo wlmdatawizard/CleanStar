@@ -1,6 +1,6 @@
 """Business-rule IDs, descriptions, and actions for CleanStar.
 
-Claims conditions live in sql/transformations/classify_claims.sql.
+Claims conditions live in sql/transformations/categorized_claims.sql.
 Other dataset rules remain reference definitions until implemented.
 This catalog contains data only; CLM-010 through CLM-014 cover typed clean fields.
 """

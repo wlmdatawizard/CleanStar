@@ -1,4 +1,4 @@
-"""Collect pre-cleaning summary counts without changing or classifying records."""
+"""Collect pre-cleaning summary counts without changing or categorizing records."""
 
 from pathlib import Path
 

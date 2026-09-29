@@ -7,7 +7,7 @@ from cleanstar.validate_data import validate_data
 
 
 class ValidateDataTests(unittest.TestCase):
-    def test_queries_use_same_run_and_preserve_classifications(self):
+    def test_queries_use_same_run_and_preserve_categories(self):
         cursor = Mock()
         cursor.description = [
             ("CLAIM_ID",), ("VALIDATION_STATUS",),

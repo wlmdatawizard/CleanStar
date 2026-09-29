@@ -1,4 +1,4 @@
-"""Run business-rule SQL and collect classified records for one load.
+"""Run business-rule SQL and collect categorized records for one load.
 
 SQL files contain all business-rule logic. These functions do not modify tables
 or open connections; the caller supplies and retains ownership of the cursor.
@@ -28,11 +28,11 @@ def run_validation_query(cursor, filename, load_run_id):
 
 
 def validate_data(cursor, load_run_id):
-    """Return each dataset's classified records for the supplied load ID.
+    """Return each dataset's categorized records for the supplied load ID.
 
     Each record includes source values, tracking metadata, VALIDATION_STATUS,
     VALIDATION_RULE_IDS, and VALIDATION_MESSAGES. Business-rule failures are
-    returned as classifications, not Python exceptions. SQL/connection errors
+    returned as categories, not Python exceptions. SQL/connection errors
     propagate and stop execution. A dataset with no rows returns an empty list.
     This collects results only; it does not insert CLEAN or QUARANTINE records.
     """

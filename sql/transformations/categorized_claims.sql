@@ -1,5 +1,5 @@
--- Classify prepared billing claims inside Snowflake; no data returned to Python.
--- Parameters: unique classified temporary table name, prepared temporary table name,
+-- Categorize prepared billing claims inside Snowflake; no data returned to Python.
+-- Parameters: unique categorized claims temporary table name, prepared temporary table name,
 -- then LOAD_RUN_ID. Use the same session as prepare_claims.sql.
 -- Raw fingerprints detect exact source duplicates; normalized IDs detect conflicts.
 -- Quarantine takes precedence over deduplication. Claims have no warning-only rules.
