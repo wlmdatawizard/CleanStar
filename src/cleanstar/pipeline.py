@@ -1,5 +1,6 @@
 """Coordinate CleanStar pipeline operations."""
 
+import csv
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -9,6 +10,57 @@ from cleanstar.data_config import RAW_LOADS
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_DIR / "data"
+
+
+def count_csv_rows(file_path):
+    """Count CSV records, excluding the header."""
+    with open(file_path, newline="", encoding="utf-8") as file:
+        reader = csv.reader(file)
+        next(reader, None)
+        return sum(1 for _ in reader)
+
+
+def get_source_row_counts():
+    """Return source counts keyed by raw table's short name, as in Northstar."""
+    return {
+        "BILLING_CLAIMS_RAW": count_csv_rows(DATA_DIR / "billing_claims_dirty.csv"),
+        "ENCOUNTER_INFO_RAW": count_csv_rows(DATA_DIR / "encounter_info_dirty.csv"),
+        "PATIENT_INFO_RAW": count_csv_rows(DATA_DIR / "patient_info_dirty.csv"),
+        "PROVIDER_INFO_RAW": count_csv_rows(DATA_DIR / "provider_info_dirty.csv"),
+    }
+
+
+def get_raw_counts(cursor):
+    """Return total raw-table counts; call before and after loading."""
+    sql = (PROJECT_DIR / "sql" / "validation" / "get_raw_counts.sql").read_text(
+        encoding="utf-8-sig"
+    )
+    cursor.execute(sql)
+    return dict(cursor.fetchall())
+
+
+def reconcile_load_counts(source_counts, before_counts, after_counts):
+    """Report table growth against source counts without raising on mismatches.
+
+    Assumes no other process changes these tables during the load. A skipped
+    previously loaded file adds no rows and can therefore report MISMATCH.
+    """
+    results = []
+    for table_name, source_count in source_counts.items():
+        before_count = before_counts[table_name]
+        after_count = after_counts[table_name]
+        loaded_count = after_count - before_count
+
+        if loaded_count == source_count:
+            status = "MATCH"
+        else:
+            status = "MISMATCH"
+
+        results.append(
+            (table_name, source_count, before_count, after_count, loaded_count, status)
+        )
+
+    return results
 
 
 def create_load_context():
