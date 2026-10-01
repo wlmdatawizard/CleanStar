@@ -1,5 +1,5 @@
 -- Insert prepared, typed values from categorized_claims.sql.
--- Parameters: categorized claims temporary table name, then LOAD_RUN_ID.
+-- Parameter: LOAD_RUN_ID.
 -- Use the same Snowflake session as preparation and categorization.
 -- Run both destination inserts once per load, together in a transaction.
 -- These statements append rows; rerunning them would insert duplicates.
@@ -26,6 +26,6 @@ SELECT
     categorized_claims.VALIDATION_STATUS,
     categorized_claims.VALIDATION_RULE_IDS,
     categorized_claims.VALIDATION_MESSAGES
-FROM IDENTIFIER(%s) AS categorized_claims
+FROM CLEANSTAR.RAW.CATEGORIZED_CLAIMS AS categorized_claims
 WHERE categorized_claims.LOAD_RUN_ID = %s
   AND categorized_claims.VALIDATION_STATUS = 'CLEAN';

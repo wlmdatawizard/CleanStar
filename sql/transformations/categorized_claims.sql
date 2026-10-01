@@ -1,13 +1,12 @@
 -- Categorize prepared billing claims inside Snowflake; no data returned to Python.
--- Parameters: unique categorized claims temporary table name, prepared temporary table name,
--- then LOAD_RUN_ID. Use the same session as prepare_claims.sql.
+-- Parameter: LOAD_RUN_ID. Use the same session as prepare_claims.sql.
 -- Raw fingerprints detect exact source duplicates; normalized IDs detect conflicts.
 -- Quarantine takes precedence over deduplication. Claims have no warning-only rules.
 -- Missing optional values are allowed; supplied values that fail conversion are not.
 -- CLM-007 checks the original amount so rounding cannot hide a small negative value.
-CREATE TEMPORARY TABLE IDENTIFIER(%s) AS
+CREATE TEMPORARY TABLE CLEANSTAR.RAW.CATEGORIZED_CLAIMS AS
 WITH CURRENT_LOAD AS (
-    SELECT * FROM IDENTIFIER(%s)
+    SELECT * FROM CLEANSTAR.RAW.PREPARED_CLAIMS
     WHERE LOAD_RUN_ID = %s
 ),
 RANKED_ROWS AS (

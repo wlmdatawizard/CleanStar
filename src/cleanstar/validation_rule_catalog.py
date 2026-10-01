@@ -1,8 +1,7 @@
 """Business-rule IDs, descriptions, and actions for CleanStar.
 
-Claims conditions live in sql/transformations/categorized_claims.sql.
-Other dataset rules remain reference definitions until implemented.
-This catalog contains data only; CLM-010 through CLM-014 cover typed clean fields.
+Conditions live in sql/transformations/categorized_*.sql.
+This catalog contains data only. Additional conversion rules protect typed clean fields.
 """
 
 VALIDATION_RULES = [
@@ -210,6 +209,51 @@ VALIDATION_RULES = [
         "rule_id": "PRO-006", "dataset": "Providers", "field": "PROVIDER_ID",
         "category": "CONSISTENCY", "scope": "CLEAN_HISTORY",
         "description": "ID conflicts with a CLEAN record from an earlier load",
+        "action": "QUARANTINE",
+    },
+    {
+        "rule_id": "ENC-008",
+        "dataset": "Encounters",
+        "field": "START_DATETIME",
+        "category": "VALIDITY",
+        "scope": "ROW",
+        "description": "Start must be a valid timestamp",
+        "action": "QUARANTINE",
+    },
+    {
+        "rule_id": "ENC-009",
+        "dataset": "Encounters",
+        "field": "END_DATETIME",
+        "category": "VALIDITY",
+        "scope": "ROW",
+        "description": "End must be a valid timestamp",
+        "action": "QUARANTINE",
+    },
+    {
+        "rule_id": "ENC-010",
+        "dataset": "Encounters",
+        "field": "BASE_ENCOUNTER_COST",
+        "category": "VALIDITY",
+        "scope": "ROW",
+        "description": "Base encounter cost must be a representable amount",
+        "action": "QUARANTINE",
+    },
+    {
+        "rule_id": "PAT-008",
+        "dataset": "Patients",
+        "field": "COVERAGE_START_DATE",
+        "category": "VALIDITY",
+        "scope": "ROW",
+        "description": "Coverage start must be a valid date",
+        "action": "QUARANTINE",
+    },
+    {
+        "rule_id": "PAT-009",
+        "dataset": "Patients",
+        "field": "COVERAGE_END_DATE",
+        "category": "VALIDITY",
+        "scope": "ROW",
+        "description": "Coverage end must be a valid date",
         "action": "QUARANTINE",
     },
 ]
