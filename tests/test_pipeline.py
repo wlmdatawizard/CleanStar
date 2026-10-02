@@ -8,7 +8,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from cleanstar import pipeline
+# Import after adding src so tests run directly from the checkout.
+from cleanstar import pipeline  # pylint: disable=wrong-import-position,import-error
 
 
 class PipelineTests(unittest.TestCase):

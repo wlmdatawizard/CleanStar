@@ -6,7 +6,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from cleanstar import transform
+# Import after adding src so tests run directly from the checkout.
+from cleanstar import transform  # pylint: disable=wrong-import-position,import-error
 
 
 class TransformTests(unittest.TestCase):
