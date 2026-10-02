@@ -6,6 +6,10 @@ from pathlib import Path
 from uuid import uuid4
 
 from cleanstar.data_config import RAW_LOADS
+from cleanstar.audit import run_raw_audit, format_audit_report
+from cleanstar.validate_setup import validate_setup
+from cleanstar.transform import (transform_claims, transform_encounter,
+                                 transform_patient, transform_provider)
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
@@ -20,46 +24,34 @@ def count_csv_rows(file_path):
         return sum(1 for _ in reader)
 
 
-def get_source_row_counts():
-    """Return source counts keyed by raw table's short name, as in Northstar."""
+def get_source_row_counts(data_dir=DATA_DIR):
+    """Count configured CSV records, excluding headers."""
     return {
-        "BILLING_CLAIMS_RAW": count_csv_rows(DATA_DIR / "billing_claims_dirty.csv"),
-        "ENCOUNTER_INFO_RAW": count_csv_rows(DATA_DIR / "encounter_info_dirty.csv"),
-        "PATIENT_INFO_RAW": count_csv_rows(DATA_DIR / "patient_info_dirty.csv"),
-        "PROVIDER_INFO_RAW": count_csv_rows(DATA_DIR / "provider_info_dirty.csv"),
+        table.rsplit(".", 1)[-1]: count_csv_rows(Path(data_dir) / filename.removesuffix(".gz"))
+        for filename, table, _ in RAW_LOADS
     }
 
 
-def get_raw_counts(cursor):
-    """Return total raw-table counts; call before and after loading."""
-    sql = (PROJECT_DIR / "sql" / "validation" / "get_raw_counts.sql").read_text(
-        encoding="utf-8-sig"
-    )
-    cursor.execute(sql)
-    return dict(cursor.fetchall())
+def get_load_row_counts(cursor, load_run_id):
+    """Count only raw rows belonging to this run."""
+    sql = (PROJECT_DIR / "sql/validation/count_load_rows.sql").read_text(encoding="utf-8-sig")
+    results = {}
+    for _, table, _ in RAW_LOADS:
+        cursor.execute(sql, (table, load_run_id))
+        results[table.rsplit(".", 1)[-1]] = cursor.fetchone()[0]
+    return results
 
 
-def reconcile_load_counts(source_counts, before_counts, after_counts):
-    """Report table growth against source counts without raising on mismatches.
-
-    Assumes no other process changes these tables during the load. A skipped
-    previously loaded file adds no rows and can therefore report MISMATCH.
-    """
-    results = []
-    for table_name, source_count in source_counts.items():
-        before_count = before_counts[table_name]
-        after_count = after_counts[table_name]
-        loaded_count = after_count - before_count
-
-        if loaded_count == source_count:
-            status = "MATCH"
-        else:
-            status = "MISMATCH"
-
-        results.append(
-            (table_name, source_count, before_count, after_count, loaded_count, status)
-        )
-
+def reconcile_load_counts(source_counts, loaded_counts):
+    """Report matching or skipped loads; stop on partial count mismatches."""
+    results = {}
+    for table, source in source_counts.items():
+        loaded = loaded_counts[table]
+        status = "MATCH" if loaded == source else "NO_NEW_ROWS" if loaded == 0 else "MISMATCH"
+        results[table] = {"source_rows": source, "loaded_rows": loaded, "status": status}
+    mismatches = [table for table, counts in results.items() if counts["status"] == "MISMATCH"]
+    if mismatches:
+        raise RuntimeError("Source/load row count mismatch: " + ", ".join(mismatches))
     return results
 
 
@@ -71,7 +63,7 @@ def create_load_context():
     return load_run_id, ingested_at
 
 
-def upload_files(cursor):
+def upload_files(cursor, data_dir=DATA_DIR):
     """Upload configured CSVs and return each filename with its PUT results.
 
     Uses an existing cursor; the caller owns the connection. This uploads files
@@ -80,7 +72,7 @@ def upload_files(cursor):
     sql = (PROJECT_DIR / "sql" / "ingestion" / "upload_files.sql").read_text(
         encoding="utf-8-sig"
     )
-    files = [DATA_DIR / filename.removesuffix(".gz") for filename, _, _ in RAW_LOADS]
+    files = [Path(data_dir) / filename.removesuffix(".gz") for filename, _, _ in RAW_LOADS]
 
     # Check all inputs before starting uploads to avoid a partial run for missing files.
     missing_files = [str(file) for file in files if not file.is_file()]
@@ -172,3 +164,68 @@ def load_raw_tables(cursor, load_run_id, ingested_at):
         results.append((table_name, cursor.fetchall()))
 
     return results
+
+
+def get_snowflake_connection():
+    """Import the connector only when starting a live run."""
+    from cleanstar.connection import get_snowflake_connection as connect
+    return connect()
+
+
+def format_run_report(result):
+    lines = ["CLEANSTAR RUN SUMMARY", "=" * 60,
+             f"Load Run ID: {result['load_run_id']}",
+             f"Started: {result['ingested_at']}", "", "INGESTION"]
+    for table, counts in result["reconciliation"].items():
+        lines.append(f"{table}: source={counts['source_rows']:,}, "
+                     f"loaded={counts['loaded_rows']:,} ({counts['status']})")
+    lines += ["", "NO_NEW_ROWS means nothing was loaded for this run; "
+              "Snowflake may have skipped an already-loaded file.", "",
+              format_audit_report(result["audit"], result["load_run_id"]),
+              "", "TRANSFORMATION"]
+    for dataset, counts in result["transformations"].items():
+        lines.append(f"{dataset}: clean={counts['clean_rows']:,}, "
+                     f"quarantine={counts['quarantine_rows']:,}")
+    lines.append("Clean includes warnings; quarantine includes duplicates.")
+    return "\n".join(lines)
+
+
+def main(data_dir=DATA_DIR):
+    """Run each pipeline step in order using one Snowflake session.
+
+    Setup runs separately. Raw ingestion and each dataset commit independently;
+    inspect a failed run before retrying because earlier data may remain.
+    """
+    source_counts = get_source_row_counts(data_dir)
+    load_run_id, ingested_at = create_load_context()
+    print(f"Load Run ID: {load_run_id}")
+
+    with get_snowflake_connection() as connection:
+        with connection.cursor() as cursor:
+            validate_setup(cursor)
+            upload_results = upload_files(cursor, data_dir)
+            validate_staged_files(cursor)
+
+            copy_results = load_raw_tables(cursor, load_run_id, ingested_at)
+            connection.commit()
+            loaded_counts = get_load_row_counts(cursor, load_run_id)
+            reconciliation = reconcile_load_counts(source_counts, loaded_counts)
+
+            audit = run_raw_audit(cursor, load_run_id)
+            connection.commit()  # Finish reads before creating temporary tables.
+            transformations = {
+                "claims": transform_claims(cursor, load_run_id),
+                "encounters": transform_encounter(cursor, load_run_id),
+                "patients": transform_patient(cursor, load_run_id),
+                "providers": transform_provider(cursor, load_run_id),
+            }
+
+    return {
+        "load_run_id": load_run_id,
+        "ingested_at": ingested_at.isoformat(),
+        "uploads": upload_results,
+        "copy_results": copy_results,
+        "reconciliation": reconciliation,
+        "audit": audit,
+        "transformations": transformations,
+    }
