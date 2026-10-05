@@ -15,7 +15,16 @@ if __name__ == "__main__":
     print(report)
 
     report_dir = Path(__file__).resolve().parent / "reports"
-    report_dir.mkdir(exist_ok=True)
     report_path = report_dir / (result["load_run_id"] + ".txt")
-    report_path.write_text(report + "\n", encoding="utf-8")
-    print(f"\nReport saved: {report_path}")
+    try:
+        report_dir.mkdir(exist_ok=True)
+        report_path.write_text(report + "\n", encoding="utf-8")
+    except OSError as error:
+        print(
+            f"\nPipeline completed, but the report could not be saved to {report_path}.\n"
+            f"The report is displayed above. Do not rerun the pipeline just to save it.\n"
+            f"File error: {error}",
+            file=sys.stderr,
+        )
+    else:
+        print(f"\nReport saved: {report_path}")
