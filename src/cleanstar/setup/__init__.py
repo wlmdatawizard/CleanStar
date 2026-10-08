@@ -1,1 +1,0 @@
-"""Snowflake infrastructure setup operations."""

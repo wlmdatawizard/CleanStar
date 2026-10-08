@@ -1,0 +1,55 @@
+CLEANSTAR RUN SUMMARY
+============================================================
+Load Run ID: cb861e72374d4ec9b6b3f6761a97a1ee
+Started: 2026-10-07T09:06:51.687429+00:00
+
+INGESTION
+BILLING_CLAIMS_RAW: source=48,483, loaded=48,483 (MATCH)
+ENCOUNTER_INFO_RAW: source=49,501, loaded=49,501 (MATCH)
+PATIENT_INFO_RAW: source=1,175, loaded=1,175 (MATCH)
+PROVIDER_INFO_RAW: source=50, loaded=50 (MATCH)
+
+NO_NEW_ROWS means nothing was loaded for this run; Snowflake may have skipped an already-loaded file.
+
+CLEANSTAR PRE-CLEANING AUDIT
+========================================
+Load Run ID: cb861e72374d4ec9b6b3f6761a97a1ee
+
+[Claims]
+Row Count:                       48,483
+Duplicate Rows:                      97
+Duplicate Claim IDs:                 97
+Missing Claim IDs:                    0
+Missing Patient IDs:                  6
+Missing Encounter IDs:              145
+Negative Claim Amounts:              71
+
+[Encounters]
+Row Count:                       49,501
+Duplicate Rows:                      99
+Duplicate Encounter IDs:             99
+Missing Patient IDs:                  6
+Missing Provider IDs:                 0
+Missing Encounter IDs:                0
+
+[Patients]
+Row Count:                        1,175
+Duplicate Rows:                       4
+Duplicate Patient IDs:                4
+Missing Patient IDs:                  0
+
+[Providers]
+Row Count:                           50
+Duplicate Rows:                       0
+Duplicate Provider IDs:               0
+Missing Provider IDs:                 0
+
+Counts describe raw data for this load before cleaning.
+Issue counts can overlap; one record may have multiple issues.
+
+TRANSFORMATION
+claims: clean=47,542, quarantine=941
+encounters: clean=49,134, quarantine=367
+patients: clean=1,154, quarantine=21
+providers: clean=50, quarantine=0
+Clean includes warnings; quarantine includes duplicates.

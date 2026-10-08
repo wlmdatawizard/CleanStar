@@ -7,10 +7,7 @@ CREATE ROLE IF NOT EXISTS CLEANSTAR_ROLE
 -- SYSADMIN inherits this role, not the other way around.
 GRANT ROLE CLEANSTAR_ROLE TO ROLE SYSADMIN;
 
--- Assign the project role to the user running this setup.
--- Execute these statements in the same connection so the variable is available.
-SET cleanstar_setup_user = CURRENT_USER();
-GRANT ROLE CLEANSTAR_ROLE TO USER IDENTIFIER($cleanstar_setup_user);
+-- grants.sql assigns the role to the setup user after compute is available.
 
 -- The infrastructure scripts that follow run as SYSADMIN.
 USE ROLE SYSADMIN;

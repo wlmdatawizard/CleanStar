@@ -58,11 +58,22 @@ def format_audit_report(results, load_run_id):
         f"Load Run ID: {load_run_id}",
     ]
 
+    sections = []
     for dataset in ("claims", "encounters", "patients", "providers"):
-        lines.extend(["", f"[{dataset.title()}]"])
+        section = [f"[{dataset.title()}]"]
         for metric, count in results[dataset].items():
             label = metric.replace("_", " ").title().replace("Ids", "IDs")
-            lines.append(f"{label + ':':<28} {count:>10,}")
+            section.append(f"{label + ':':<28} {count:>10,}")
+        sections.append(section)
+
+    widths = [max(len(line) for line in section) for section in sections]
+    lines.append("")
+    for row in range(max(len(section) for section in sections)):
+        cells = []
+        for section, width in zip(sections, widths):
+            cell = section[row] if row < len(section) else ""
+            cells.append(cell.ljust(width))
+        lines.append(" | ".join(cells).rstrip())
 
     lines.extend([
         "",

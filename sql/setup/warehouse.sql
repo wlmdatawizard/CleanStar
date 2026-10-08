@@ -7,3 +7,6 @@ CREATE WAREHOUSE IF NOT EXISTS CLEANSTAR_WH
     AUTO_RESUME = TRUE
     INITIALLY_SUSPENDED = TRUE
     COMMENT = 'Compute for CleanStar data loading and processing';
+
+-- Select compute for the user-name query later in grants.sql.
+USE WAREHOUSE CLEANSTAR_WH;

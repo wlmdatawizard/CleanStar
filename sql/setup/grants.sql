@@ -24,4 +24,11 @@ GRANT SELECT, INSERT ON FUTURE TABLES IN SCHEMA CLEANSTAR.CLEAN TO ROLE CLEANSTA
 GRANT SELECT, INSERT ON FUTURE TABLES IN SCHEMA CLEANSTAR.QUARANTINE TO ROLE CLEANSTAR_ROLE;
 
 -- Finish setup using the pipeline role.
+-- Resolve the exact user name with SYSADMIN, which owns the warehouse.
+USE ROLE SYSADMIN;
+SET cleanstar_setup_user = (SELECT '"' || REPLACE(CURRENT_USER(), '"', '""') || '"');
+
+-- Grant administration uses SECURITYADMIN; the variable stays in this session.
+USE ROLE SECURITYADMIN;
+GRANT ROLE CLEANSTAR_ROLE TO USER IDENTIFIER($cleanstar_setup_user);
 USE ROLE CLEANSTAR_ROLE;

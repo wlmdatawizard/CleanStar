@@ -16,33 +16,40 @@ MAX_CONNECTION_ATTEMPTS = 3
 RETRY_DELAY_SECONDS = 5
 
 
-def get_snowflake_connection():
+def get_snowflake_connection(setup=False):
     """Retry temporary connection failures; the caller closes the connection.
 
     The connector may also retry internally during each connect call. These
     limits count our calls, not individual network requests. Authentication and
     configuration errors are not retried. Unknown operational errors propagate.
     """
+    # Setup must connect before the project role, warehouse, or database exists.
     settings = load_settings()
     missing = ["SNOWFLAKE_" + name.upper() for name in ("account", "user", "password")
                if not settings.get(name) or not settings[name].strip()]
     if missing:
         raise ValueError("Missing connection settings: " + ", ".join(missing)
                          + ". Check your .env file.")
+    connection_settings = {
+        "user": settings["user"],
+        "password": settings["password"],
+        "account": settings["account"],
+        "login_timeout": 30,
+    }
+    if setup:
+        connection_settings["role"] = "SECURITYADMIN"
+    else:
+        connection_settings.update(
+            warehouse=settings["warehouse"],
+            database=settings["database"],
+            schema=settings["schema"],
+            role=settings["role"],
+        )
     retryable_codes = (ER_CONNECTION_TIMEOUT, ER_FAILED_TO_CONNECT_TO_DB, ER_RETRYABLE_CODE)
 
     for attempt in range(1, MAX_CONNECTION_ATTEMPTS + 1):
         try:
-            return snowflake.connector.connect(
-                user=settings["user"],
-                password=settings["password"],
-                account=settings["account"],
-                warehouse=settings["warehouse"],
-                database=settings["database"],
-                schema=settings["schema"],
-                role=settings["role"],
-                login_timeout=30,
-            )
+            return snowflake.connector.connect(**connection_settings)
         except OperationalError as error:
             # Some login/role failures also use OperationalError; do not retry them.
             message = connection_error_message(error)

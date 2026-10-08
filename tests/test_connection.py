@@ -51,6 +51,19 @@ class ConnectionTests(unittest.TestCase):
         self.addCleanup(patch.stopall)
         self.output = patch("builtins.print").start()
 
+    def test_setup_connection_omits_uncreated_objects(self):
+        self.module.get_snowflake_connection(setup=True)
+        settings = self.connect.call_args.kwargs
+        self.assertEqual(settings["role"], "SECURITYADMIN")
+        for name in ("warehouse", "database", "schema"):
+            self.assertNotIn(name, settings)
+        self.assertEqual(settings["user"], "test")
+
+    def test_pipeline_connection_keeps_configured_objects(self):
+        self.module.get_snowflake_connection()
+        for name in ("warehouse", "database", "schema", "role"):
+            self.assertEqual(self.connect.call_args.kwargs[name], "test")
+
     def test_success_does_not_wait(self):
         result = self.module.get_snowflake_connection()
         self.assertIs(result, self.connect.return_value)

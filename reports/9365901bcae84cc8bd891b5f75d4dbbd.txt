@@ -1,0 +1,35 @@
+CLEANSTAR RUN SUMMARY
+============================================================
+Load Run ID: 9365901bcae84cc8bd891b5f75d4dbbd
+Started: 2026-10-07T09:42:58.718996+00:00
+
+INGESTION
+BILLING_CLAIMS_RAW: source=48,483, loaded=48,483 (MATCH)
+ENCOUNTER_INFO_RAW: source=49,501, loaded=49,501 (MATCH)
+PATIENT_INFO_RAW: source=1,175, loaded=1,175 (MATCH)
+PROVIDER_INFO_RAW: source=50, loaded=50 (MATCH)
+
+NO_NEW_ROWS means nothing was loaded for this run; Snowflake may have skipped an already-loaded file.
+
+CLEANSTAR PRE-CLEANING AUDIT
+========================================
+Load Run ID: 9365901bcae84cc8bd891b5f75d4dbbd
+
+[Claims]                                | [Encounters]                            | [Patients]                              | [Providers]
+Row Count:                       48,483 | Row Count:                       49,501 | Row Count:                        1,175 | Row Count:                           50
+Duplicate Rows:                      97 | Duplicate Rows:                      99 | Duplicate Rows:                       4 | Duplicate Rows:                       0
+Duplicate Claim IDs:                 97 | Duplicate Encounter IDs:             99 | Duplicate Patient IDs:                4 | Duplicate Provider IDs:               0
+Missing Claim IDs:                    0 | Missing Patient IDs:                  6 | Missing Patient IDs:                  0 | Missing Provider IDs:                 0
+Missing Patient IDs:                  6 | Missing Provider IDs:                 0 |                                         |
+Missing Encounter IDs:              145 | Missing Encounter IDs:                0 |                                         |
+Negative Claim Amounts:              71 |                                         |                                         |
+
+Counts describe raw data for this load before cleaning.
+Issue counts can overlap; one record may have multiple issues.
+
+TRANSFORMATION
+claims: clean=0, quarantine=48,483
+encounters: clean=0, quarantine=49,501
+patients: clean=0, quarantine=1,175
+providers: clean=0, quarantine=50
+Clean includes warnings; quarantine includes duplicates.

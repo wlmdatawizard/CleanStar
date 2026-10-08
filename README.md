@@ -13,9 +13,23 @@ is still required after a dedicated account is created.
 
 Install `requirements.txt` into your Python environment, fill in the Snowflake
 credentials in `.env`, and provision the objects before running the pipeline.
-The setup scripts are run separately: roles, warehouse, database, schemas, file
-format, stage, all three table scripts, then grants. Use the roles specified in
-the setup scripts. The pipeline does not provision infrastructure.
+Run setup separately, from the CleanStar directory:
+
+```powershell
+python setup_cleanstar.py
+```
+
+Use a user that can activate SECURITYADMIN and SYSADMIN. Setup connects without
+the project database, warehouse, or schema, then runs roles, warehouse, database,
+schemas, file format, stage, all three table scripts, and grants. It grants
+CLEANSTAR_ROLE to the user running setup. If ingestion uses a different user,
+that user also needs the role granted. Set SNOWFLAKE_ROLE=CLEANSTAR_ROLE for
+regular pipeline runs.
+
+Setup uses IF NOT EXISTS: rerunning preserves existing objects and data, but
+does not update existing table definitions or settings. A failure stops setup
+and leaves earlier completed statements in place; fix the reported problem
+before rerunning. Setup is not part of every pipeline run.
 
 From the CleanStar directory:
 
@@ -52,6 +66,23 @@ temporary table names themselves do not conflict across connections.
 SQL remains in `.sql` files. Python supplies parameters, controls execution, and
 formats results. Timestamps without offsets are interpreted as UTC. Setup checks
 verify object access and column names, not all types or file-format properties.
+
+## Reset test data
+
+To start a fresh test, run this separately while no pipeline run is active:
+
+```powershell
+python reset_cleanstar.py
+python run_cleanstar.py
+```
+
+The reset empties all 12 raw, clean, and quarantine tables, including records
+from every previous load. It preserves table definitions, grants, staged files,
+local CSVs, and saved reports. TRUNCATE clears table load metadata so the same
+source files can load again. Use the administrative user used for setup, with
+access to SECURITYADMIN and SYSADMIN. Errors stop the script; if a reset fails,
+some tables may already be empty. Resolve the error and complete the reset
+before starting another pipeline run.
 
 ## Offline checks
 
