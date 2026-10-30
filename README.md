@@ -1,14 +1,79 @@
 # CleanStar
 
-CleanStar is a Python-first recreation of Northstar built for learning Snowflake.
+A Python and Snowflake data pipeline that validates synthetic healthcare data,
+separates accepted records from quarantined records, and presents the results
+in Power BI.
 
-The project uses Python for orchestration and external `.sql` files for
-Snowflake roles, warehouses, databases, schemas, stages, grants, ingestion,
-validation, transformations, and views.
+CleanStar processes claims, encounters, patients, and providers from local CSV
+files. It preserves source values in raw tables, applies cleaning and validation
+rules in SQL, and records why each quarantined record could not be accepted.
 
-The full workflow, including the automatic startup reset, has been run against
-Snowflake and refreshed in Power BI. The verified demonstration produced 99,209
-raw records, 97,880 clean records, and 1,329 quarantined records.
+I built CleanStar as a more clearly organized version of my Northstar project.
+Python coordinates the workflow; SQL stays in separate files so the database
+operations and business rules are easy to find, review, and explain.
+
+**Technologies:** Python · SQL · Snowflake · Power BI
+
+## Results
+
+The reset, ingestion, transformation, and Power BI refresh workflow has been
+verified against a live Snowflake account using the supplied synthetic data.
+
+| Dataset | Raw records | Clean records | Quarantine records |
+| --- | ---: | ---: | ---: |
+| Claims | 48,483 | 47,542 | 941 |
+| Encounters | 49,501 | 49,134 | 367 |
+| Patients | 1,175 | 1,154 | 21 |
+| Providers | 50 | 50 | 0 |
+| **Total** | **99,209** | **97,880** | **1,329** |
+
+Clean counts include records accepted with warnings. Quarantine counts include
+rejected records and duplicates. Every source record is accounted for:
+**97,880 + 1,329 = 99,209**.
+
+## Dashboard
+
+[Download the Power BI report](dashboard/CleanStar.pbix) and open it in Power BI
+Desktop to explore the saved results. On GitHub, use **Download raw file** on
+the file page to download the `.pbix`.
+
+![CleanStar Power BI report showing record counts and quarantine reasons](notes/PowerBI%20Report%20Screenshot.png)
+
+The report shows raw, clean, and quarantine totals, grouped quarantine reasons,
+and the ingestion timestamp and load ID. A row with several validation messages
+represents records failing that combination of rules; those records are counted
+once in that group.
+
+The screenshot is a saved demonstration snapshot. Later successful runs using
+the same files produce the same counts with a new load ID and timestamp.
+
+## Pipeline workflow
+
+```mermaid
+flowchart TD
+    A[Clear previous demonstration records] --> B[Check source files and Snowflake setup]
+    B --> C[Upload CSVs to stage and validate file structure]
+    C --> D[Load raw tables with run metadata]
+    D --> E[Reconcile source and loaded counts]
+    E --> F[Audit raw data]
+    F --> G[Clean, convert types, and categorize records]
+    G --> H[Clean tables]
+    G --> I[Quarantine tables with validation reasons]
+    H --> J[Refresh Power BI report]
+    I --> J
+```
+
+- **Raw:** source fields are loaded as VARCHAR, with load ID, filename, and ingestion timestamp.
+- **Audit:** summarize issues before cleaning, including missing identifiers and duplicates.
+- **Transformation:** normalize values, attempt type conversions, and apply dataset-specific rules.
+- **Clean:** store accepted records with appropriate date, timestamp, and numeric column types.
+- **Quarantine:** preserve original source values alongside validation status, rule IDs, and messages.
+- **Reporting:** print and save a run summary, then manually refresh Power BI from Snowflake.
+
+Invalid calendar dates are quarantined rather than corrected by guessing. The
+rules distinguish duplicates, rejected records, warnings, and clean records.
+See the [rule catalog](src/cleanstar/validation_rule_catalog.py) and
+[transformation SQL](sql/transformations/) for the implementation.
 
 ## Demonstration data and reset design
 
@@ -37,96 +102,160 @@ failed reset or load can leave empty or partially populated tables. Saved text
 reports remain on disk, but are not a substitute for retained source and audit
 history. This tradeoff keeps the portfolio demonstration simple and repeatable.
 
-## Run the pipeline
+## Run it yourself
 
-Install `requirements.txt` into your Python environment, fill in the Snowflake
-credentials in `.env`, and provision the objects before running the pipeline.
-Run setup separately, from the CleanStar directory:
+### Prerequisites
+
+- Python and the packages in [requirements.txt](requirements.txt).
+- Your own Snowflake account and credentials. Setup and the automatic reset
+  require a user that can activate SECURITYADMIN and SYSADMIN.
+- Power BI Desktop if you want to build or refresh the interactive report.
+  It is not required to run the Python pipeline.
+
+Use a dedicated demonstration environment: each run clears the 12 CleanStar
+pipeline tables. Credentials belong in your local `.env`, which is excluded
+from Git; do not commit that file.
+
+### 1. Prepare the Python environment
+
+Open a terminal in the `CleanStar` directory. For Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+### 2. Configure Snowflake
+
+Copy [.env.example](.env.example) to `.env` if you do not already have one.
+Replace the account, username, and password placeholders with your own values,
+and set:
+
+```dotenv
+SNOWFLAKE_ROLE=CLEANSTAR_ROLE
+SNOWFLAKE_WAREHOUSE=CLEANSTAR_WH
+SNOWFLAKE_DATABASE=CLEANSTAR
+SNOWFLAKE_SCHEMA=RAW
+```
+
+The SQL scripts target these CleanStar object names. Changing environment
+variables alone does not rename the objects referenced in SQL.
+
+### 3. Check the input files
+
+The [data](data/) directory contains the four synthetic source files:
+
+- `billing_claims_dirty.csv`
+- `encounter_info_dirty.csv`
+- `patient_info_dirty.csv`
+- `provider_info_dirty.csv`
+
+File and column mappings are defined in
+[data_config.py](src/cleanstar/data_config.py).
+
+### 4. Provision Snowflake objects
 
 ```powershell
 python setup_cleanstar.py
 ```
 
-Use a user that can activate SECURITYADMIN and SYSADMIN. Setup connects without
-the project database, warehouse, or schema, then runs roles, warehouse, database,
-schemas, file format, stage, all three table scripts, and grants. It grants
-CLEANSTAR_ROLE to the user running setup. If ingestion uses a different user,
-that user also needs the role granted. Set SNOWFLAKE_ROLE=CLEANSTAR_ROLE for
-regular pipeline runs.
+Run setup separately before the first pipeline run. It creates the role,
+warehouse, database, schemas, file format, stage, tables, and grants. It also
+grants CLEANSTAR_ROLE to the setup user. Setup uses `IF NOT EXISTS`; rerunning
+it does not migrate existing table definitions or change existing settings.
 
-Setup uses IF NOT EXISTS: rerunning preserves existing objects and data, but
-does not update existing table definitions or settings. A failure stops setup
-and leaves earlier completed statements in place; fix the reported problem
-before rerunning. Setup is not part of every pipeline run.
-
-From the CleanStar directory:
+### 5. Run the pipeline
 
 ```powershell
 python run_cleanstar.py
 ```
 
-Source CSVs go in the `data` folder. The four filenames must match
-`src/cleanstar/data_config.py`.
+The first step clears all 12 raw, clean, and quarantine tables using a separate
+administrative connection. A reset failure stops the pipeline. The remaining
+workflow uses the configured pipeline role. Setup is not rerun.
 
-## Workflow
+The terminal displays the load ID, reconciliation results, raw audit, and
+transformation counts. A text summary is saved to `reports/<load_run_id>.txt`.
+Run only one pipeline at a time.
 
-`run_cleanstar.py` directly calls `pipeline.main()`, which first clears all 12
-raw, clean, and quarantine tables using the reset SQL and a separate administrative
-connection. It then opens the pipeline connection, checks setup, uploads
-and validates files, loads raw tables, reconciles counts for the current load ID,
-runs the baseline audit, and transforms all four datasets. It closes the cursor
-and connection on success or failure. The launcher prints a summary and saves it as
-`reports/<load_run_id>.txt`.
-
-The startup reset clears prior records and COPY load metadata, allowing the same
-source files to load again. The COPY statement still uses `FORCE = FALSE`.
-Snowflake can skip files already loaded within a run. `NO_NEW_ROWS` in the
-report means a nonempty source produced no raw rows for this run; it does not
-mean the file was freshly processed. Partial count mismatches stop the workflow.
-
-Preparation and categorization use session-local temporary tables. Clean and
-quarantine inserts commit together for each dataset. Raw loads and earlier
-completed datasets can remain after a later failure. The load ID is printed at startup and original errors propagate; inspect that
-load before retrying. This version has no resume or
-automatic retry feature. Connection loss during commit can leave its outcome
-uncertain. A successful report contains insert counts, not a post-cleaning audit.
-
-Run one pipeline at a time for now: the shared stage uses fixed filenames, and
-historical duplicate checks do not coordinate concurrent writers. Session-local
-temporary table names themselves do not conflict across connections.
-
-SQL remains in `.sql` files. Python supplies parameters, controls execution, and
-formats results. Timestamps without offsets are interpreted as UTC. Setup checks
-verify object access and column names, not all types or file-format properties.
-
-## Reset test data
-
-**Every pipeline run automatically removes all existing records from the 12
-CleanStar pipeline tables before reading or loading source files.** Run only one
-pipeline at a time. Previous database runs are not retained, and a failure does
-not restore the previous data. Refresh Power BI after a successful run.
-
-To clear records without running ingestion, use:
+To clear records without starting ingestion:
 
 ```powershell
 python reset_cleanstar.py
 ```
 
-The reset empties all 12 raw, clean, and quarantine tables, including records
-from every previous load. It preserves table definitions, grants, staged files,
-local CSVs, and saved reports. TRUNCATE clears table load metadata so the same
-source files can load again. Both the pipeline startup reset and standalone reset require the administrative
-user used for setup, with
-access to SECURITYADMIN and SYSADMIN. Errors stop the script; if a reset fails,
-some tables may already be empty. Resolve the error and complete the reset
-before starting another pipeline run.
+The reset preserves table definitions, grants, staged files, local CSVs, and
+saved reports. It clears table load metadata so the same source files can load
+again.
 
-## Offline checks
+## Power BI connection and refresh
+
+The report uses **Import** mode with Snowflake. Its three combined queries are
+`Raw Records`, `Clean Records`, and `Quarantine Records`; each combines the four
+corresponding dataset tables and adds a `DATASET` label.
+
+To connect a report to your own environment, use the Snowflake connector with
+your account's server address, warehouse `CLEANSTAR_WH`, database `CLEANSTAR`,
+and role `CLEANSTAR_ROLE`.
+
+After a successful pipeline run:
+
+1. Open the report in Power BI Desktop.
+2. Select **Home → Refresh → Data**.
+3. Confirm its load ID matches the terminal report and that clean plus quarantine
+   counts equal the raw count.
+4. Save the refreshed report.
+
+A saved Import-mode report can be viewed without Snowflake access; refreshing
+requires credentials and an available Snowflake account. The saved report is available at
+[dashboard/CleanStar.pbix](dashboard/CleanStar.pbix).
+
+## Project layout
+
+| Location | Purpose |
+| --- | --- |
+| `run_cleanstar.py` | Start the pipeline and save its summary |
+| `setup_cleanstar.py` | Provision Snowflake objects separately |
+| `reset_cleanstar.py` | Clear demonstration records without ingestion |
+| `src/cleanstar/` | Python configuration, connections, orchestration, audit, and transformations |
+| `sql/setup/` | Roles, warehouse, database, schemas, stage, file format, and grants |
+| `sql/tables/` | Raw, clean, and quarantine table definitions |
+| `sql/ingestion/` | Upload and raw-loading statements |
+| `sql/validation/` | Setup checks, staged-file checks, reconciliation, and raw audits |
+| `sql/transformations/` | Preparation, categorization, and destination inserts |
+| `sql/reset_cleanstar.sql` | Clear all 12 demonstration tables |
+| `data/` | Synthetic source CSVs |
+| `reports/` | Saved pipeline summaries |
+| `tests/` | Offline tests using simulated connections and cursors |
+| `dashboard/CleanStar.pbix` | Power BI report with imported demonstration results |
+| `notes/` | Dashboard screenshot and supporting project notes |
+
+## Verification and limitations
+
+Run the offline tests from the CleanStar directory:
 
 ```powershell
 python -B -m unittest discover -s tests -v
 ```
 
-These tests check sequencing, transaction handling, reports, and cleanup using
-simulated cursors. They do not establish that the pipeline works against a live
-Snowflake account.
+Tests cover sequencing, connection error handling, transaction handling, reports,
+and cleanup. They also verify that reset happens first and a reset failure
+prevents ingestion. Mocked tests complement the live run; they do not replace
+Snowflake integration testing.
+
+This project demonstrates a complete batch workflow, with deliberate limits:
+
+- Reset and ingestion are not one transaction. A failed run can leave empty or
+  partially populated tables; prior data is not restored.
+- Clean and quarantine inserts commit together per dataset. Raw loads and earlier
+  completed datasets can remain after a later failure.
+- Connection setup retries selected transient failures, but the pipeline has no
+  automatic workflow resume or retry. Inspect failures before starting another
+  run, which will clear the tables again.
+- Shared stage filenames and resets make concurrent pipeline runs unsupported.
+- Setup validation checks object access and column names, not every column type
+  or file-format property.
+- The summary reports insert counts and the pre-cleaning audit; it is not a
+  separate post-cleaning audit of every business rule.
+
