@@ -1,7 +1,9 @@
--- Manual test reset: removes every row from all 12 CleanStar pipeline tables.
+-- Portfolio demo: replay fixed local synthetic CSVs from a fresh state.
+-- This reset is not a production incremental-load or history-retention strategy.
+-- Fresh-run reset: removes every row from all 12 CleanStar pipeline tables.
 -- Keep table definitions, grants, staged files, local CSVs, and saved reports.
 -- TRUNCATE also clears table load metadata so the same files can be loaded again.
--- Run separately from the pipeline, when no pipeline run is active.
+-- Executed at pipeline startup; do not run concurrent pipelines or resets.
 USE ROLE SYSADMIN;
 
 TRUNCATE TABLE CLEANSTAR.RAW.BILLING_CLAIMS_RAW;

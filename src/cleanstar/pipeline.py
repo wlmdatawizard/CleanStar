@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
+from cleanstar.reset import reset_tables
 from cleanstar.data_config import RAW_LOADS
 from cleanstar.audit import run_raw_audit, format_audit_report
 from cleanstar.validate_setup import validate_setup
@@ -191,11 +192,12 @@ def format_run_report(result):
 
 
 def main(data_dir=DATA_DIR):
-    """Run each pipeline step in order using one Snowflake session.
+    """Clear previous records, then ingest and transform a fresh dataset.
 
-    Setup runs separately. Raw ingestion and each dataset commit independently;
-    inspect a failed run before retrying because earlier data may remain.
+    Reset uses a separate administrative session. A reset failure stops the run.
+    Reset and ingestion are not atomic; a failed run can leave partial data.
     """
+    reset_tables()
     source_counts = get_source_row_counts(data_dir)
     load_run_id, ingested_at = create_load_context()
     print(f"Load Run ID: {load_run_id}")

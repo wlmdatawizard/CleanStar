@@ -23,6 +23,7 @@ class PipelineTests(unittest.TestCase):
         stack.enter_context(patch("builtins.print"))
         counts = {table.rsplit(".", 1)[-1]: 10 for _, table, _ in pipeline.RAW_LOADS}
         values = {
+            "reset_tables": None,
             "get_source_row_counts": counts,
             "create_load_context": ("run-123", datetime(2026, 10, 2, tzinfo=timezone.utc)),
             "get_snowflake_connection": connection,
@@ -47,6 +48,7 @@ class PipelineTests(unittest.TestCase):
         with ExitStack() as stack:
             connection, cursor, calls, mocks = self.setup_run(stack)
             result = pipeline.main()
+            self.assertEqual(calls[0], "reset_tables")
             self.assertEqual(calls[-4:], ["transform_claims", "transform_encounter", "transform_patient", "transform_provider"])
             self.assertLess(calls.index("validate_staged_files"), calls.index("load_raw_tables"))
             self.assertLess(calls.index("run_raw_audit"), calls.index("transform_claims"))
@@ -55,6 +57,15 @@ class PipelineTests(unittest.TestCase):
             self.assertIn("clean=8, quarantine=2", pipeline.format_run_report(result))
             cursor.close.assert_called_once()
             connection.close.assert_called_once()
+
+    def test_reset_failure_stops_before_ingestion(self):
+        with ExitStack() as stack:
+            _, _, calls, mocks = self.setup_run(stack, "reset_tables")
+            with self.assertRaisesRegex(RuntimeError, "simulated failure"):
+                pipeline.main()
+            self.assertEqual(calls, ["reset_tables"])
+            mocks["get_snowflake_connection"].assert_not_called()
+            mocks["load_raw_tables"].assert_not_called()
 
     def test_every_database_phase_failure_closes_resources_and_stops(self):
         phases = ["validate_setup", "upload_files", "validate_staged_files", "load_raw_tables", "get_load_row_counts", "run_raw_audit", "transform_claims", "transform_encounter", "transform_patient", "transform_provider"]
