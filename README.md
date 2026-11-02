@@ -14,6 +14,17 @@ operations and business rules are easy to find, review, and explain.
 
 **Technologies:** Python · SQL · Snowflake · Power BI
 
+## Contents
+
+- [Results](#results)
+- [Dashboard](#dashboard)
+- [Pipeline workflow](#pipeline-workflow)
+- [Demonstration data and reset design](#demonstration-data-and-reset-design)
+- [Run it yourself](#run-it-yourself)
+- [Power BI connection and refresh](#power-bi-connection-and-refresh)
+- [Project layout](#project-layout)
+- [Verification and limitations](#verification-and-limitations)
+
 ## Results
 
 The reset, ingestion, transformation, and Power BI refresh workflow has been
@@ -108,15 +119,17 @@ history. This tradeoff keeps the portfolio demonstration simple and repeatable.
 
 ### Prerequisites
 
-- Python and the packages in [requirements.txt](requirements.txt).
+- Python **3.13.1**, the version used in the project virtual environment, and
+  the packages in [requirements.txt](requirements.txt). Other Python versions
+  have not been verified for this project.
 - Your own Snowflake account and credentials. Setup and the automatic reset
   require a user that can activate SECURITYADMIN and SYSADMIN.
 - Power BI Desktop if you want to build or refresh the interactive report.
   It is not required to run the Python pipeline.
 
-Use a dedicated demonstration environment: each run clears the 12 CleanStar
-pipeline tables. Credentials belong in your local `.env`, which is excluded
-from Git; do not commit that file.
+Use a dedicated demonstration environment for the
+[automatic reset](#demonstration-data-and-reset-design). Credentials belong in
+your local `.env`, which is excluded from Git; do not commit that file.
 
 ### 1. Prepare the Python environment
 
@@ -175,9 +188,9 @@ it does not migrate existing table definitions or change existing settings.
 python run_cleanstar.py
 ```
 
-The first step clears all 12 raw, clean, and quarantine tables using a separate
-administrative connection. A reset failure stops the pipeline. The remaining
-workflow uses the configured pipeline role. Setup is not rerun.
+**This command clears all 12 pipeline tables before ingestion.** The reset uses
+a separate administrative connection; if it fails, the pipeline stops. The
+remaining workflow uses the configured pipeline role. Setup is not rerun.
 
 The terminal displays the load ID, reconciliation results, raw audit, and
 transformation counts. A text summary is saved to `reports/<load_run_id>.txt`.
@@ -201,23 +214,34 @@ The report uses **Import** mode with Snowflake. Its three combined queries are
 `Raw Records`, `Clean Records`, and `Quarantine Records`; each combines the four
 corresponding dataset tables and adds a `DATASET` label.
 
-To connect a report to your own environment, use the Snowflake connector with
-your account's server address, warehouse `CLEANSTAR_WH`, database `CLEANSTAR`,
-and role `CLEANSTAR_ROLE`.
+### View the saved results
 
-After a successful pipeline run:
+Open [dashboard/CleanStar.pbix](dashboard/CleanStar.pbix) in Power BI Desktop.
+The imported results can be explored without Snowflake access or a refresh.
 
-1. Open the report in Power BI Desktop.
-2. Select **Home → Refresh → Data**.
-3. Confirm its load ID matches the terminal report and that clean plus quarantine
+### Connect the downloaded report to your account
+
+**The report's saved queries point to the author's Snowflake account.** Before
+refreshing your own copy, update its Snowflake data-source connection to use
+your account's server address and authenticate with your own credentials.
+The Python `.env` file does not configure Power BI's connection.
+
+Use warehouse `CLEANSTAR_WH`, database `CLEANSTAR`, and role `CLEANSTAR_ROLE`
+after provisioning the objects with the setup script. Update the source for
+all queries that reference the original account, including the original dataset
+queries feeding the three combined reporting queries. Keep the existing query
+names and transformation steps so the visuals continue to work.
+
+### Refresh after a pipeline run
+
+1. Complete a successful pipeline run in your Snowflake environment.
+2. Open your configured report in Power BI Desktop.
+3. Select **Home → Refresh → Data**.
+4. Confirm its load ID matches the terminal report and that clean plus quarantine
    counts equal the raw count.
-4. Save the refreshed report.
+5. Save the refreshed report.
 
-![CleanStar dashboard](screenshots/dashboard.png)
-
-A saved Import-mode report can be viewed without Snowflake access; refreshing
-requires credentials and an available Snowflake account. The saved report is available at
-[dashboard/CleanStar.pbix](dashboard/CleanStar.pbix).
+Refreshing requires your Snowflake credentials and an available account.
 
 ## Project layout
 
