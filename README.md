@@ -37,12 +37,14 @@ rejected records and duplicates. Every source record is accounted for:
 Desktop to explore the saved results. On GitHub, use **Download raw file** on
 the file page to download the `.pbix`.
 
-![CleanStar Power BI report showing record counts and quarantine reasons](notes/PowerBI%20Report%20Screenshot.png)
+![CleanStar Power BI report showing record counts and quarantine reasons](screenshots/dashboard.png)
 
 The report shows raw, clean, and quarantine totals, grouped quarantine reasons,
 and the ingestion timestamp and load ID. A row with several validation messages
 represents records failing that combination of rules; those records are counted
 once in that group.
+
+Ingestion timestamps are shown in **UTC**.
 
 The screenshot is a saved demonstration snapshot. Later successful runs using
 the same files produce the same counts with a new load ID and timestamp.
@@ -165,6 +167,8 @@ warehouse, database, schemas, file format, stage, tables, and grants. It also
 grants CLEANSTAR_ROLE to the setup user. Setup uses `IF NOT EXISTS`; rerunning
 it does not migrate existing table definitions or change existing settings.
 
+![Successful Snowflake setup](screenshots/setup.png)
+
 ### 5. Run the pipeline
 
 ```powershell
@@ -178,6 +182,8 @@ workflow uses the configured pipeline role. Setup is not rerun.
 The terminal displays the load ID, reconciliation results, raw audit, and
 transformation counts. A text summary is saved to `reports/<load_run_id>.txt`.
 Run only one pipeline at a time.
+
+![Successful pipeline run](screenshots/pipeline_terminal.png)
 
 To clear records without starting ingestion:
 
@@ -207,6 +213,8 @@ After a successful pipeline run:
    counts equal the raw count.
 4. Save the refreshed report.
 
+[CleanStar dashboard](screenshots/dashboard.png)
+
 A saved Import-mode report can be viewed without Snowflake access; refreshing
 requires credentials and an available Snowflake account. The saved report is available at
 [dashboard/CleanStar.pbix](dashboard/CleanStar.pbix).
@@ -229,7 +237,8 @@ requires credentials and an available Snowflake account. The saved report is ava
 | `reports/` | Saved pipeline summaries |
 | `tests/` | Offline tests using simulated connections and cursors |
 | `dashboard/CleanStar.pbix` | Power BI report with imported demonstration results |
-| `notes/` | Dashboard screenshot and supporting project notes |
+| `screenshots/` | Setup, pipeline-run, and dashboard screenshots |
+| `notes/` | Development notes and learning references |
 
 ## Verification and limitations
 
