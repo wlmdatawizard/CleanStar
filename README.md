@@ -213,7 +213,7 @@ After a successful pipeline run:
    counts equal the raw count.
 4. Save the refreshed report.
 
-[CleanStar dashboard](screenshots/dashboard.png)
+![CleanStar dashboard](screenshots/dashboard.png)
 
 A saved Import-mode report can be viewed without Snowflake access; refreshing
 requires credentials and an available Snowflake account. The saved report is available at
